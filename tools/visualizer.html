@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Wars - Match Replay Visualizer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #141b2d;
+            --accent-blue: #3b82f6;
+            --accent-red: #ef4444;
+            --neutral-color: #9ca3af;
+            --sun-color: #f59e0b;
+            --text-main: #f3f4f6;
+            --text-sub: #9ca3af;
+            --border-color: #1f293d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        }
+
+        input[type="file"] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 650px 1fr;
+            gap: 20px;
+            flex-grow: 1;
+        }
+
+        .canvas-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        canvas {
+            background-color: #05070d;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        .controls {
+            width: 100%;
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        input[type="range"] {
+            flex-grow: 1;
+            accent-color: var(--accent-blue);
+            cursor: pointer;
+        }
+
+        .btn-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            background: #1f293d;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        .btn-sm:hover {
+            background: #2d3d5a;
+        }
+
+        .dashboard-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .stat-box {
+            background: #0d1322;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-title {
+            font-size: 0.85rem;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+        }
+
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+
+        .score-bar-container {
+            display: flex;
+            height: 14px;
+            border-radius: 7px;
+            overflow: hidden;
+            background: #1f293d;
+            margin-top: 8px;
+        }
+
+        .score-p0 {
+            background: var(--accent-blue);
+            transition: width 0.3s ease;
+        }
+
+        .score-p1 {
+            background: var(--accent-red);
+            transition: width 0.3s ease;
+        }
+
+        .legend {
+            display: flex;
+            gap: 20px;
+            font-size: 0.9rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Nexus Wars Replay Visualizer</h1>
+        <div class="file-input-wrapper">
+            <button class="btn">📁 Load Match Replay JSON</button>
+            <input type="file" id="fileInput" accept=".json">
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="canvas-card">
+            <canvas id="gameCanvas" width="600" height="600"></canvas>
+            <div class="controls">
+                <div class="slider-row">
+                    <span id="stepLabel" style="min-width: 80px; font-weight: 600;">Step 0</span>
+                    <input type="range" id="stepSlider" min="0" max="500" value="0">
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-sm" id="btnPrev">⏮ Prev</button>
+                    <button class="btn btn-sm" id="btnPlay">▶ Play</button>
+                    <button class="btn btn-sm" id="btnNext">Next ⏭</button>
+                    <select class="btn btn-sm" id="speedSelect">
+                        <option value="1">1x Speed</option>
+                        <option value="2">2x Speed</option>
+                        <option value="5" selected>5x Speed</option>
+                        <option value="10">10x Speed</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-card">
+            <div class="legend">
+                <div class="legend-item"><div class="dot" style="background: var(--accent-blue);"></div> Player 0 (Blue)</div>
+                <div class="legend-item"><div class="dot" style="background: var(--accent-red);"></div> Player 1 (Red)</div>
+                <div class="legend-item"><div class="dot" style="background: var(--neutral-color);"></div> Neutral</div>
+                <div class="legend-item"><div class="dot" style="background: var(--sun-color);"></div> Sun Danger Zone</div>
+            </div>
+
+            <div class="stat-box">
+                <div class="stat-title">Match Result</div>
+                <div class="stat-value" id="matchResult">No Replay Loaded</div>
+                <div style="font-size: 0.9rem; color: var(--text-sub); margin-top: 4px;" id="matchReason">-</div>
+            </div>
+
+            <div class="stat-box">
+                <div class="stat-title">Territory Control (Planets)</div>
+                <div style="display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 4px;">
+                    <span style="color: var(--accent-blue)" id="p0Planets">P0: 1</span>
+                    <span style="color: var(--accent-red)" id="p1Planets">P1: 1</span>
+                </div>
+                <div class="score-bar-container">
+                    <div class="score-p0" id="barP0Planets" style="width: 50%;"></div>
+                    <div class="score-p1" id="barP1Planets" style="width: 50%;"></div>
+                </div>
+            </div>
+
+            <div class="stat-box">
+                <div class="stat-title">Ship Fleet Reserves</div>
+                <div style="display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 4px;">
+                    <span style="color: var(--accent-blue)" id="p0Ships">P0: 10</span>
+                    <span style="color: var(--accent-red)" id="p1Ships">P1: 10</span>
+                </div>
+                <div class="score-bar-container">
+                    <div class="score-p0" id="barP0Ships" style="width: 50%;"></div>
+                    <div class="score-p1" id="barP1Ships" style="width: 50%;"></div>
+                </div>
+            </div>
+
+            <div class="stat-box">
+                <div class="stat-title">Current Step Launches</div>
+                <div style="font-size: 0.95rem;" id="launchLog">None</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scale = canvas.width / 100.0; // 100x100 board coordinates
+
+        let replayData = null;
+        let currentStep = 0;
+        let isPlaying = false;
+        let playInterval = null;
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                try {
+                    replayData = JSON.parse(evt.target.result);
+                    initReplay();
+                } catch(err) {
+                    alert('Invalid JSON file!');
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        function initReplay() {
+            if (!replayData || !replayData.steps) return;
+            const maxSteps = replayData.steps.length - 1;
+            const slider = document.getElementById('stepSlider');
+            slider.max = maxSteps;
+            slider.value = 0;
+            currentStep = 0;
+
+            const info = replayData.info || {};
+            const winner = info.winner !== undefined ? info.winner : -1;
+            const scores = info.scores || [0, 0];
+            const reason = info.reason || "Complete";
+
+            const resDiv = document.getElementById('matchResult');
+            if (winner === 0) {
+                resDiv.textContent = `Player 0 WON (${scores[0]} pts)`;
+                resDiv.style.color = '#3b82f6';
+            } else if (winner === 1) {
+                resDiv.textContent = `Player 1 WON (${scores[1]} pts)`;
+                resDiv.style.color = '#ef4444';
+            } else {
+                resDiv.textContent = 'DRAW';
+                resDiv.style.color = '#9ca3af';
+            }
+            document.getElementById('matchReason').textContent = `Reason: ${reason}`;
+
+            renderStep(0);
+        }
+
+        function renderStep(stepIdx) {
+            if (!replayData || !replayData.steps[stepIdx]) return;
+            currentStep = stepIdx;
+            document.getElementById('stepLabel').textContent = `Step ${stepIdx}`;
+            document.getElementById('stepSlider').value = stepIdx;
+
+            const stepData = replayData.steps[stepIdx];
+            const obs = stepData.observation || {};
+            const planets = obs.planets || [];
+            const fleets = obs.fleets || [];
+            const actions = stepData.action || stepData.actions || [];
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Sun Danger Zone (R=12.0) & Sun (R=10.0)
+            ctx.beginPath();
+            ctx.arc(50 * scale, 50 * scale, 12.0 * scale, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(245, 158, 11, 0.15)';
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(50 * scale, 50 * scale, 10.0 * scale, 0, Math.PI * 2);
+            ctx.fillStyle = '#f59e0b';
+            ctx.shadowColor = '#f59e0b';
+            ctx.shadowBlur = 20;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            // Stats tracking
+            let p0Planets = 0, p1Planets = 0;
+            let p0Ships = 0, p1Ships = 0;
+
+            // Draw Planets
+            planets.forEach(p => {
+                const pid = p[0], owner = p[1], x = p[2], y = p[3], radius = p[4], ships = p[5], prod = p[6];
+                const cx = x * scale, cy = y * scale, r = radius * scale;
+
+                let strokeColor = '#9ca3af', fillColor = '#1f2937';
+                if (owner === 0) {
+                    strokeColor = '#3b82f6';
+                    fillColor = 'rgba(59, 130, 246, 0.25)';
+                    p0Planets++;
+                    p0Ships += ships;
+                } else if (owner === 1) {
+                    strokeColor = '#ef4444';
+                    fillColor = 'rgba(239, 68, 68, 0.25)';
+                    p1Planets++;
+                    p1Ships += ships;
+                }
+
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.fillStyle = fillColor;
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = strokeColor;
+                ctx.stroke();
+
+                // Label
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '10px Outfit';
+                ctx.textAlign = 'center';
+                ctx.fillText(`P${pid} (${ships})`, cx, cy - r - 3);
+                ctx.fillStyle = '#9ca3af';
+                ctx.fillText(`+${prod}`, cx, cy + 3);
+            });
+
+            // Draw Fleets
+            fleets.forEach(f => {
+                const owner = f[1], x = f[2], y = f[3], angle = f[4], ships = f[6];
+                const fx = x * scale, fy = y * scale;
+                const fColor = owner === 0 ? '#60a5fa' : '#f87171';
+
+                if (owner === 0) p0Ships += ships;
+                if (owner === 1) p1Ships += ships;
+
+                ctx.save();
+                ctx.translate(fx, fy);
+                ctx.rotate(angle);
+
+                ctx.beginPath();
+                ctx.moveTo(8, 0);
+                ctx.lineTo(-6, -4);
+                ctx.lineTo(-6, 4);
+                ctx.closePath();
+                ctx.fillStyle = fColor;
+                ctx.fill();
+
+                ctx.restore();
+
+                ctx.fillStyle = fColor;
+                ctx.font = '9px Outfit';
+                ctx.fillText(`${ships}`, fx, fy - 6);
+            });
+
+            // Update UI Stats
+            document.getElementById('p0Planets').textContent = `P0: ${p0Planets}`;
+            document.getElementById('p1Planets').textContent = `P1: ${p1Planets}`;
+            const totalP = Math.max(1, p0Planets + p1Planets);
+            document.getElementById('barP0Planets').style.width = `${(p0Planets / totalP) * 100}%`;
+            document.getElementById('barP1Planets').style.width = `${(p1Planets / totalP) * 100}%`;
+
+            document.getElementById('p0Ships').textContent = `P0: ${p0Ships}`;
+            document.getElementById('p1Ships').textContent = `P1: ${p1Ships}`;
+            const totalS = Math.max(1, p0Ships + p1Ships);
+            document.getElementById('barP0Ships').style.width = `${(p0Ships / totalS) * 100}%`;
+            document.getElementById('barP1Ships').style.width = `${(p1Ships / totalS) * 100}%`;
+
+            // Action log
+            let logText = '';
+            if (actions[0] && actions[0].length) logText += `P0: ${actions[0].length} fleet(s) launched. `;
+            if (actions[1] && actions[1].length) logText += `P1: ${actions[1].length} fleet(s) launched.`;
+            document.getElementById('launchLog').textContent = logText || 'No launches on this step';
+        }
+
+        document.getElementById('stepSlider').addEventListener('input', function(e) {
+            renderStep(parseInt(e.target.value));
+        });
+
+        document.getElementById('btnPrev').addEventListener('click', function() {
+            if (currentStep > 0) renderStep(currentStep - 1);
+        });
+
+        document.getElementById('btnNext').addEventListener('click', function() {
+            if (replayData && currentStep < replayData.steps.length - 1) renderStep(currentStep + 1);
+        });
+
+        document.getElementById('btnPlay').addEventListener('click', function() {
+            isPlaying = !isPlaying;
+            this.textContent = isPlaying ? '⏸ Pause' : '▶ Play';
+            if (isPlaying) {
+                const speed = parseInt(document.getElementById('speedSelect').value);
+                playInterval = setInterval(() => {
+                    if (replayData && currentStep < replayData.steps.length - 1) {
+                        renderStep(currentStep + 1);
+                    } else {
+                        isPlaying = false;
+                        document.getElementById('btnPlay').textContent = '▶ Play';
+                        clearInterval(playInterval);
+                    }
+                }, 200 / speed);
+            } else {
+                clearInterval(playInterval);
+            }
+        });
+    </script>
+</body>
+</html>
